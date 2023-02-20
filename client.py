@@ -113,11 +113,60 @@ class Client:
         response = await self.provider.make_request('/public/get_currencies')
         return response['result']
 
+    async def get_historical_volatility(self, currency: Literal['BTC', 'ETH', 'USDC']) -> List:
+        """Provides information about historical volatility for given cryptocurrency.
+
+        :param currency: 'BTC', 'ETH', 'USDC'
+        :return: List[[timestamp, value]]
+        """
+        response = await self.provider.make_request('/public/get_historical_volatility', {'currency': currency})
+        return response['result']
+
+    async def get_index_price(self, index_name: str):
+        method = '/public/get_index_price'
+        raise NotImplementedError
+
+    async def get_instrument(self, instrument_name: str):
+        method = '/public/get_instrument'
+        raise NotImplementedError
+
+    async def get_instruments(
+            self,
+            currency: Literal['BTC', 'ETH', 'USDC'],
+            kind: Literal['future', 'option', 'future_combo', 'option_combo'] = '',
+            expired=False
+    ) -> List[Dict]:
+        """Retrieves available trading instruments.
+        This method can be used to see which instruments are available for trading,
+        or which instruments have recently expired.
+        """
+        params = {'currency': currency}
+        if kind: params['kind'] = kind
+        if expired: params['expired'] = expired
+        response = await self.provider.make_request('/public/get_instruments', params)
+        return response['result']
+
+    async def get_tradingview_chart_data(
+            self,
+            instrument_name: str,
+            start_timestamp: int,
+            end_timestamp: int,
+            resolution: Literal['1', '3', '5', '10', '15', '30', '60', '120', '180', '360', '720', '1D']
+    ) -> ChartData:
+        method = '/public/get_tradingview_chart_data'
+        raise NotImplementedError
+
+    async def ticker(self, instrument_name: str):
+        method = '/public/ticker'
+        raise NotImplementedError
+
 
 async def test():
     client = Client(CLIENT_ID, CLIENT_SECRET)
     pprint(await client.authenticate())
     pprint(await client.get_currencies())
+    pprint(await client.get_historical_volatility('BTC'))
+    pprint(await client.get_instruments('BTC', kind='future'))
 
 
 if __name__ == '__main__':

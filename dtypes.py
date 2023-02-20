@@ -19,3 +19,14 @@ Currency = TypedDict('Currency', {
     'withdrawal_fee': float,
     'withdrawal_priorities': List
 })
+
+ChartData = TypedDict('ChartData', {
+    'close': List[float],
+    'cost': List[float],
+    'high': List[float],
+    'low': List[float],
+    'open': List[float],
+    'status': Literal['ok', 'no_data'],
+    'ticks': List[int],
+    'volume': List[float]
+})
