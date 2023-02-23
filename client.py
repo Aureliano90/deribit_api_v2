@@ -7,6 +7,9 @@ from web3 import AsyncHTTPProvider
 from web3._utils.encoding import FriendlyJsonSerde
 from web3._utils.request import _get_async_session as get_async_session
 from dtypes import *
+import matplotlib.pyplot as plt
+import pandas as pd
+from datetime import datetime
 from pprint import pprint
 
 load_dotenv()
@@ -122,9 +125,17 @@ class Client:
         response = await self.provider.make_request('/public/get_historical_volatility', {'currency': currency})
         return response['result']
 
-    async def get_index_price(self, index_name: str):
-        method = '/public/get_index_price'
-        raise NotImplementedError
+    async def get_index_price(self, index_name: str) -> Dict:
+        """Retrieves the current index price value for given index name.
+
+        :param index_name: Index identifier, matches (base) cryptocurrency with quote currency
+        :return: TypedDict('IndexPrice', {
+            'estimated_delivery_price': float,
+            'index_price': float
+        })
+        """
+        response = await self.provider.make_request('/public/get_index_price', {'index_name': index_name})
+        return response['result']
 
     async def get_instrument(self, instrument_name: str):
         method = '/public/get_instrument'
@@ -153,20 +164,68 @@ class Client:
             end_timestamp: int,
             resolution: Literal['1', '3', '5', '10', '15', '30', '60', '120', '180', '360', '720', '1D']
     ) -> ChartData:
-        method = '/public/get_tradingview_chart_data'
-        raise NotImplementedError
+        """Publicly available market data used to generate a TradingView candle chart.
+
+        :param instrument_name: Instrument name
+        :param start_timestamp: The earliest timestamp to return result for (milliseconds since the UNIX epoch)
+        :param end_timestamp: The most recent timestamp to return result for (milliseconds since the UNIX epoch)
+        :param resolution: Chart bars resolution given in full minutes or keyword `1D`
+        :return: `ChartData`
+        """
+        params = {
+            'instrument_name': instrument_name,
+            'start_timestamp': int(start_timestamp),
+            'end_timestamp': int(end_timestamp),
+            'resolution': resolution
+        }
+        response = await self.provider.make_request('/public/get_tradingview_chart_data', params)
+        return response['result']
 
     async def ticker(self, instrument_name: str):
         method = '/public/ticker'
         raise NotImplementedError
 
 
+def plot(title: str, df: pd.DataFrame):
+    fig = plt.figure(figsize=(16, 8))
+    ax1 = fig.add_subplot()
+    ax2 = ax1.twinx()
+    ax1.set_title(title, fontsize=16)
+    ax1.set_xlabel('Date')
+    ax1.set_ylabel('HV')
+    ax2.set_ylabel('Price')
+
+    p1, = ax1.plot(df['timestamp'], df['hv'], label='HV', linestyle='solid')
+    p2, = ax2.plot(df['timestamp'], df['price'], label='Underlying price', color='green', linestyle='dashed')
+    plots = [p1, p2]
+
+    ax1.legend(handles=plots, fontsize=12, loc='best')
+    ax1.yaxis.label.set_color(p1.get_color())
+    ax2.yaxis.label.set_color(p2.get_color())
+    ax1.yaxis.set_major_formatter('{x:.2%}')
+    plt.grid(axis='y', linestyle='--')
+    plt.show()
+
+
 async def test():
     client = Client(CLIENT_ID, CLIENT_SECRET)
-    pprint(await client.authenticate())
-    pprint(await client.get_currencies())
-    pprint(await client.get_historical_volatility('BTC'))
-    pprint(await client.get_instruments('BTC', kind='future'))
+    # pprint(await client.authenticate())
+    # pprint(await client.get_currencies())
+    hv = await client.get_historical_volatility('ETH')
+    df = pd.DataFrame(hv, columns=['timestamp', 'hv'])
+    df.drop_duplicates(subset='timestamp', keep=False, inplace=True, ignore_index=True)
+    df['hv'] = df['hv'] / 100
+    candles = await client.get_tradingview_chart_data(
+        'ETH-PERPETUAL',
+        df['timestamp'][0],
+        df['timestamp'][len(df)-1],
+        '60'
+    )
+    candles = pd.DataFrame(candles)
+    df['price'] = candles['close']
+    df['timestamp'] = df['timestamp'].apply(lambda t: datetime.utcfromtimestamp(t / 1000))
+    plot('HV', df)
+    # pprint(await client.get_instruments('BTC', kind='future'))
 
 
 if __name__ == '__main__':
