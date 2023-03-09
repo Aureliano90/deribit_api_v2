@@ -73,6 +73,9 @@ class Client:
         self.client_secret = client_secret
         self.refresh_token = ''
 
+    async def make_request(self, method: str, params: Optional[Dict] = None) -> Any:
+        return (await self.provider.make_request(method, params))['result']
+
     async def authenticate(self) -> Authentication:
         """Retrieve an Oauth access token, to be used for authentication of 'private' requests.
 
@@ -94,25 +97,24 @@ class Client:
                 'client_id': self.client_id,
                 'client_secret': self.client_secret
             }
-        response = await self.provider.make_request(method, params)
-        self.refresh_token = response['result']['refresh_token']
-        return response['result']
+        res = await self.make_request(method, params)
+        self.refresh_token = res['refresh_token']
+        return res
 
     async def exchange_token(self, subject_id: int) -> Authentication:
         """Generates token for new subject id. This method can be used to switch between subaccounts.
         """
-        response = await self.provider.make_request('/public/exchange_token', {
+        res = await self.make_request('/public/exchange_token', {
             'subject_id': subject_id,
             'refresh_token': self.refresh_token
         })
-        self.refresh_token = response['result']['refresh_token']
-        return response['result']
+        self.refresh_token = res['refresh_token']
+        return res
 
     async def get_currencies(self) -> List[Currency]:
         """Retrieves all cryptocurrencies supported by the API.
         """
-        response = await self.provider.make_request('/public/get_currencies')
-        return response['result']
+        return await self.make_request('/public/get_currencies')
 
     async def get_historical_volatility(self, currency: Literal['BTC', 'ETH', 'USDC']) -> List:
         """Provides information about historical volatility for given cryptocurrency.
@@ -120,8 +122,7 @@ class Client:
         :param currency: 'BTC', 'ETH', 'USDC'
         :return: List[[timestamp, value]]
         """
-        response = await self.provider.make_request('/public/get_historical_volatility', {'currency': currency})
-        return response['result']
+        return await self.make_request('/public/get_historical_volatility', {'currency': currency})
 
     async def get_index_price(self, index_name: str) -> Dict:
         """Retrieves the current index price value for given index name.
@@ -132,8 +133,7 @@ class Client:
             'index_price': float
         })
         """
-        response = await self.provider.make_request('/public/get_index_price', {'index_name': index_name})
-        return response['result']
+        return await self.make_request('/public/get_index_price', {'index_name': index_name})
 
     async def get_instrument(self, instrument_name: str):
         """Retrieves information about instrument
@@ -141,8 +141,7 @@ class Client:
         :param instrument_name: Instrument name
         """
         params = {'instrument_name': instrument_name}
-        response = await self.provider.make_request('/public/get_instrument', params)
-        return response['result']
+        return await self.make_request('/public/get_instrument', params)
 
     async def get_instruments(
             self,
@@ -157,8 +156,7 @@ class Client:
         params = {'currency': currency}
         if kind: params['kind'] = kind
         if expired: params['expired'] = expired
-        response = await self.provider.make_request('/public/get_instruments', params)
-        return response['result']
+        return await self.make_request('/public/get_instruments', params)
 
     async def get_tradingview_chart_data(
             self,
@@ -181,8 +179,7 @@ class Client:
             'end_timestamp': int(end_timestamp),
             'resolution': resolution
         }
-        response = await self.provider.make_request('/public/get_tradingview_chart_data', params)
-        return response['result']
+        return await self.make_request('/public/get_tradingview_chart_data', params)
 
     async def ticker(self, instrument_name: str) -> Ticker:
         """Get ticker for an instrument.
@@ -191,8 +188,7 @@ class Client:
         :return:
         """
         params = {'instrument_name': instrument_name}
-        response = await self.provider.make_request('/public/ticker', params)
-        return response['result']
+        return await self.make_request('/public/ticker', params)
 
 
 async def test():
