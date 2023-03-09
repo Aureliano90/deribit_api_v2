@@ -4,6 +4,7 @@ from aiohttp import ClientTimeout
 from dotenv import load_dotenv
 from eth_utils import to_bytes
 from web3 import AsyncHTTPProvider
+from web3.types import RPCResponse
 from web3._utils.encoding import FriendlyJsonSerde
 from web3._utils.request import _get_async_session as get_async_session
 from dtypes import *
@@ -135,8 +136,13 @@ class Client:
         return response['result']
 
     async def get_instrument(self, instrument_name: str):
-        method = '/public/get_instrument'
-        raise NotImplementedError
+        """Retrieves information about instrument
+
+        :param instrument_name: Instrument name
+        """
+        params = {'instrument_name': instrument_name}
+        response = await self.provider.make_request('/public/get_instrument', params)
+        return response['result']
 
     async def get_instruments(
             self,
@@ -178,18 +184,25 @@ class Client:
         response = await self.provider.make_request('/public/get_tradingview_chart_data', params)
         return response['result']
 
-    async def ticker(self, instrument_name: str):
-        method = '/public/ticker'
-        raise NotImplementedError
+    async def ticker(self, instrument_name: str) -> Ticker:
+        """Get ticker for an instrument.
+
+        :param instrument_name: Instrument name
+        :return:
+        """
+        params = {'instrument_name': instrument_name}
+        response = await self.provider.make_request('/public/ticker', params)
+        return response['result']
 
 
 async def test():
     client = Client(CLIENT_ID, CLIENT_SECRET)
     pprint(await client.authenticate())
-    pprint(await client.get_currencies())
-    pprint(await client.get_historical_volatility('BTC'))
-    pprint(await client.get_instruments('BTC', kind='future'))
+    # pprint(await client.get_currencies())
+    # pprint(await client.get_historical_volatility('BTC'))
+    # pprint(await client.get_instruments('BTC', kind='future'))
+    pprint(await client.ticker('BTC-PERPETUAL'))
 
 
 if __name__ == '__main__':
-    asyncio.get_event_loop_policy().get_event_loop().run_until_complete(test())
+    asyncio.run(test())
